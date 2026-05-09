@@ -8,6 +8,15 @@
 #include <Adafruit_DPS310.h>
 #include <SparkFun_Weather_Meter_Kit_Arduino_Library.h>
 
+// Hardware UART for manager: RX=12, TX=14
+HardwareSerial UARTmgr(2);
+
+#include "BleServerManager.h"
+#include "UARTManager.h"
+
+BleServerManager bleServer;
+UARTManager uartManager;
+
 #define DHTTYPE DHT11
 #define DHTPIN 16
 #define LIGHT_PIN 34
@@ -28,6 +37,10 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
   dht.begin();
+
+  // // Init hardware UART manager on Serial2 (RX=12, TX=14)
+  // UARTmgr.begin(115200, SERIAL_8N1, 12, 14);
+  // UARTmgr.println("UARTmgr initialized");
 
   // Configure ADC for light sensor on GPIO34 (input-only pin)
   pinMode(LIGHT_PIN, INPUT);
@@ -81,72 +94,98 @@ void setup()
 
   // Now we can set all the calibration parameters at once
   weatherMeterKit.setCalibrationParams(calibrationParams);
+
+  bleServer.begin();
+  uartManager.begin();
 }
 
 void loop()
 {
 
-  sensors_event_t event;
-  dht.temperature().getEvent(&event);
-  if (isnan(event.temperature))
+  bleServer.update();
+  uartManager.update();
+
+  static unsigned long lastSensorMs = 0;
+  const unsigned long sensorIntervalMs = 2000;
+  unsigned long now = millis();
+  if (now - lastSensorMs >= sensorIntervalMs)
   {
-    Serial.println("Error reading temperature!");
+    lastSensorMs = now;
+
+    // Read sensors and update UART data
+    UARTManager::SensorData data;
+
+    sensors_event_t event;
+    dht.temperature().getEvent(&event);
+    if (isnan(event.temperature))
+    {
+      Serial.println("Error reading temperature!");
+    }
+    else
+    {
+      data.temperatureC = event.temperature;
+    }
+
+    dht.humidity().getEvent(&event);
+    if (isnan(event.relative_humidity))
+    {
+      Serial.println("Error reading humidity!");
+    }
+    else
+    {
+      // Serial.print("Humidity: ");
+      // Serial.print(event.relative_humidity);
+      // Serial.println(" %");
+    }
+
+    // DPS310 barometre: lire les deux mesures sur le meme echantillon.
+    sensors_event_t temp_event, pressure_event;
+
+    if (dps.temperatureAvailable() || dps.pressureAvailable())
+    {
+      dps.getEvents(&temp_event, &pressure_event);
+
+      // Serial.print(F("Temperature = "));
+      // Serial.print(temp_event.temperature);
+      // Serial.println(" *C");
+
+      data.temperatureC = temp_event.temperature;
+
+      // Serial.print(F("Pressure = "));
+      // Serial.print(pressure_event.pressure);
+      // Serial.println(" hPa");
+
+      // Serial.println();
+    }
+    else
+    {
+      Serial.println("DPS310 data not ready");
+    }
+
+    // Lire capteur de lumière Grove (branché sur GPIO34)
+    int lightRaw = analogRead(LIGHT_PIN);
+    // Serial.print("Light raw: ");
+    // Serial.print(lightRaw);
+
+    // Serial.print(F("Wind direction (degrees): "));
+    // Serial.print(weatherMeterKit.getWindDirection(), 1);
+
+    // Serial.print(F("\t\t"));
+    // Serial.print(F("Wind speed (kph): "));
+    // Serial.print(weatherMeterKit.getWindSpeed(), 1);
+    // Serial.print(F("\t\t"));
+    // Serial.print(F("Total rainfall (mm): "));
+    // Serial.println(weatherMeterKit.getTotalRainfall(), 1);
+
+    data.humidityPercent = event.relative_humidity;
+    data.pressurehPa = pressure_event.pressure;
+    data.windSpeedMps = weatherMeterKit.getWindSpeed() / 3.6f; // Convert kph to m/s
+    data.windDirectionDeg = weatherMeterKit.getWindDirection();
+    data.illuminanceLux = lightRaw; // For simplicity, just send raw ADC value for light
+    data.totalRainfallMm = weatherMeterKit.getTotalRainfall();
+    data.sequence = now / sensorIntervalMs;
+
+    uartManager.setSensorData(data);
+    bleServer.notifyDataReady();
   }
-  else
-  {
-    Serial.print("Temperature: ");
-    Serial.print(event.temperature);
-    Serial.println(" *C");
-  }
-
-  dht.humidity().getEvent(&event);
-  if (isnan(event.relative_humidity))
-  {
-    Serial.println("Error reading humidity!");
-  }
-  else
-  {
-    Serial.print("Humidity: ");
-    Serial.print(event.relative_humidity);
-    Serial.println(" %");
-  }
-
-  // DPS310 barometre: lire les deux mesures sur le meme echantillon.
-  sensors_event_t temp_event, pressure_event;
-
-  if (dps.temperatureAvailable() || dps.pressureAvailable())
-  {
-    dps.getEvents(&temp_event, &pressure_event);
-
-    Serial.print(F("Temperature = "));
-    Serial.print(temp_event.temperature);
-    Serial.println(" *C");
-
-    Serial.print(F("Pressure = "));
-    Serial.print(pressure_event.pressure);
-    Serial.println(" hPa");
-
-    Serial.println();
-  }
-  else
-  {
-    Serial.println("DPS310 data not ready");
-  }
-
-  // Lire capteur de lumière Grove (branché sur GPIO34)
-  int lightRaw = analogRead(LIGHT_PIN);
-  Serial.print("Light raw: ");
-  Serial.print(lightRaw);
-
-  Serial.print(F("Wind direction (degrees): "));
-  Serial.print(weatherMeterKit.getWindDirection(), 1);
-
-  Serial.print(F("\t\t"));
-  Serial.print(F("Wind speed (kph): "));
-  Serial.print(weatherMeterKit.getWindSpeed(), 1);
-  Serial.print(F("\t\t"));
-  Serial.print(F("Total rainfall (mm): "));
-  Serial.println(weatherMeterKit.getTotalRainfall(), 1);
-
-  delay(delayMS);
 }

@@ -7,10 +7,11 @@ class UARTManager {
   struct SensorData {
     float temperatureC = 0.0f;
     float humidityPercent = 0.0f;
-    uint32_t pressurePa = 0;
+    float pressurehPa = 0;
     float windSpeedMps = 0.0f;
     float windDirectionDeg = 0.0f;
     float illuminanceLux = 0.0f;
+    float totalRainfallMm = 0.0f;
     uint32_t sequence = 0;
   };
 

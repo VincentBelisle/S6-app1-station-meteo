@@ -1,60 +1,58 @@
 #include "UARTManager.h"
 
-UARTManager::UARTManager(Stream& stream)
-    : stream_(&stream), rxBuffer_() {}
+UARTManager::UARTManager(Stream &stream) : stream_(&stream) {}
 
 void UARTManager::begin() {
-  rxBuffer_.reserve(64);
-  stream_->println("UARTManager ready. Send GET_DATA to retrieve latest sensor values.");
+  if (stream_) {
+    // Print header once
+    stream_->println("UARTManager ready");
+  }
 }
 
 void UARTManager::update() {
-  while (stream_->available() > 0) {
-    const char c = static_cast<char>(stream_->read());
-    if (c == '\r') {
-      continue;
-    }
-
+  if (!stream_) return;
+  while (stream_->available()) {
+    int c = stream_->read();
+    if (c == '\r') continue;
     if (c == '\n') {
-      if (rxBuffer_.length() > 0) {
+      if (rxBuffer_.length()) {
         handleCommand(rxBuffer_);
-        rxBuffer_ = "";
+        rxBuffer_.clear();
       }
     } else {
-      rxBuffer_ += c;
+      rxBuffer_.concat((char)c);
     }
   }
 }
 
-void UARTManager::setSensorData(const SensorData& data) {
+void UARTManager::setSensorData(const SensorData &data) {
   latestData_ = data;
 }
 
 void UARTManager::sendCurrentData() {
-  stream_->print("DATA,");
-  stream_->print("SEQ=");
-  stream_->print(latestData_.sequence);
-  stream_->print(",TEMP=");
-  stream_->print(latestData_.temperatureC, 2);
-  stream_->print(",HUM=");
-  stream_->print(latestData_.humidityPercent, 2);
-  stream_->print(",PRES=");
-  stream_->print(latestData_.pressurePa);
-  stream_->print(",WIND=");
-  stream_->print(latestData_.windSpeedMps, 2);
-  stream_->print(",WINDDIR=");
-  stream_->print(latestData_.windDirectionDeg, 2);
-  stream_->print(",LUX=");
-  stream_->println(latestData_.illuminanceLux, 2);
+  if (!stream_) return;
+  // Simple CSV: seq,tempC,hum%,pres_hPa,wind_mps,wind_deg,light, rain_mm
+  char buf[200];
+  int n = snprintf(buf, sizeof(buf), "%lu,%.2f,%.2f,%.1f,%.2f,%.1f,%.0f,%.2f",
+                   (unsigned long)latestData_.sequence,
+                   latestData_.temperatureC,
+                   latestData_.humidityPercent,
+                   latestData_.pressurehPa,
+                   latestData_.windSpeedMps,
+                   latestData_.windDirectionDeg,
+                   latestData_.illuminanceLux,
+                   latestData_.totalRainfallMm);
+  stream_->println(buf);
 }
 
-void UARTManager::handleCommand(const String& command) {
-  const String normalized = command;
-  if (normalized.equalsIgnoreCase("GET_DATA") || normalized.equalsIgnoreCase("REQ_DATA")) {
+void UARTManager::handleCommand(const String &command) {
+  if (command == "GET") {
     sendCurrentData();
-    return;
+  } else if (command == "RESET_RAIN") {
+    // no-op here; application can implement if needed
+    stream_->println("OK");
+  } else {
+    stream_->print("ERR Unknown cmd: ");
+    stream_->println(command);
   }
-
-  stream_->print("ERR,UNKNOWN_CMD,");
-  stream_->println(command);
 }

@@ -165,7 +165,9 @@ void loop()
     // Lire capteur de lumière Grove (branché sur GPIO34)
     int lightRaw = analogRead(LIGHT_PIN);
     // Serial.print("Light raw: ");
-    // Serial.print(lightRaw);
+    // Serial.println(lightRaw);
+    // Serial.print("Light (lux): ");
+    // Serial.println(lightRaw * 6.14 * 3.3 / 4096); // Convert raw ADC
 
     // Serial.print(F("Wind direction (degrees): "));
     // Serial.print(weatherMeterKit.getWindDirection(), 1);
@@ -181,7 +183,7 @@ void loop()
     data.pressurehPa = pressure_event.pressure;
     data.windSpeedMps = weatherMeterKit.getWindSpeed() / 3.6f; // Convert kph to m/s
     data.windDirectionDeg = weatherMeterKit.getWindDirection();
-    data.illuminanceLux = lightRaw; // For simplicity, just send raw ADC value for light
+    data.illuminanceLux = lightRaw * 6.14 * 3.3 / 4096; // Convert raw ADC value to lux
     data.totalRainfallMm = weatherMeterKit.getTotalRainfall();
     data.sequence = now / sensorIntervalMs;
 

@@ -170,7 +170,9 @@ void loop()
     // Lire capteur de lumière Grove (branché sur GPIO34)
     int lightRaw = analogRead(LIGHT_PIN);
     // Serial.print("Light raw: ");
-    // Serial.print(lightRaw);
+    // Serial.println(lightRaw);
+    // Serial.print("Light (lux): ");
+    // Serial.println(lightRaw * 6.14 * 3.3 / 4096); // Convert raw ADC
 
     // Serial.print(F("Wind direction (degrees): "));
     // Serial.print(weatherMeterKit.getWindDirection(), 1);

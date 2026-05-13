@@ -1,3 +1,8 @@
+/*
+Auteurs: Vincent Bélisle BELV1805,
+Elliot Gaulin GAUE1909
+*/
+
 #include "BleServerManager.h"
 
 #include <BLE2902.h>

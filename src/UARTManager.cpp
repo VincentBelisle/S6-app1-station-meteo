@@ -1,3 +1,8 @@
+/*
+Auteurs: Vincent Bélisle BELV1805,
+Elliot Gaulin GAUE1909
+*/
+
 #include "UARTManager.h"
 
 UARTManager::UARTManager(Stream &stream) : stream_(&stream) {}
@@ -30,7 +35,10 @@ void UARTManager::setSensorData(const SensorData &data) {
 }
 
 void UARTManager::sendCurrentData() {
+  Serial.println("Sending current sensor data over UART...");
   if (!stream_) return;
+  Serial.print("Data seq: ");
+  Serial.println(latestData_.sequence);
   // Simple CSV: seq,tempC,hum%,pres_hPa,wind_mps,wind_deg,light, rain_mm
   char buf[200];
   int n = snprintf(buf, sizeof(buf), "%lu,%.2f,%.2f,%.1f,%.2f,%.1f,%.0f,%.2f",

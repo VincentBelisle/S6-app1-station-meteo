@@ -1,3 +1,7 @@
+/*
+Auteurs: Vincent Bélisle BELV1805,
+Elliot Gaulin GAUE1909
+*/
 #pragma once
 
 #include <Arduino.h>

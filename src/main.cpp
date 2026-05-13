@@ -1,3 +1,8 @@
+/*
+Auteurs: Vincent Bélisle BELV1805,
+Elliot Gaulin GAUE1909
+*/
+
 #include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -15,7 +20,7 @@ HardwareSerial UARTmgr(2);
 #include "UARTManager.h"
 
 BleServerManager bleServer;
-UARTManager uartManager;
+UARTManager uartManager(UARTmgr);
 
 #define DHTTYPE DHT11
 #define DHTPIN 16
@@ -38,9 +43,9 @@ void setup()
   Serial.println("Starting BLE work!");
   dht.begin();
 
-  // // Init hardware UART manager on Serial2 (RX=12, TX=14)
-  // UARTmgr.begin(115200, SERIAL_8N1, 12, 14);
-  // UARTmgr.println("UARTmgr initialized");
+  // Init hardware UART manager on Serial2 (RX=12, TX=14)
+  UARTmgr.begin(115200, SERIAL_8N1, 12, 14);
+  UARTmgr.println("UARTmgr initialized");
 
   // Configure ADC for light sensor on GPIO34 (input-only pin)
   pinMode(LIGHT_PIN, INPUT);
@@ -182,6 +187,8 @@ void loop()
     data.windSpeedMps = weatherMeterKit.getWindSpeed() / 3.6f; // Convert kph to m/s
     data.windDirectionDeg = weatherMeterKit.getWindDirection();
     data.illuminanceLux = lightRaw; // For simplicity, just send raw ADC value for light
+
+    // data.illuminanceLux = lightRaw * 6.14 * 3.3 / 4096; // Convert raw ADC value to lux
     data.totalRainfallMm = weatherMeterKit.getTotalRainfall();
     data.sequence = now / sensorIntervalMs;
 
